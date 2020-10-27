@@ -24,14 +24,17 @@ class StoryList {
   // class directly. Why doesn't it make sense for getStories to be an instance method?
 
   static async getStories() {
-    // query the /stories endpoint (no auth required)
-    const response = await axios.get(`${BASE_URL}/stories`);
-
-    // turn the plain old story objects from the API into instances of the Story class
-    const stories = response.data.stories.map((story) => new Story(story));
-
-    // build an instance of our own class using the new array of stories
+    const res = await axios({
+      url: `${BASE_URL}/stories`,
+      method: 'GET',
+      data: {
+        limit: 20,
+        skip: 0,
+      },
+    });
+    const stories = res.data.stories.map((story) => new Story(story));
     const storyList = new StoryList(stories);
+
     return storyList;
   }
 
@@ -39,14 +42,33 @@ class StoryList {
    * Method to make a POST request to /stories and add the new story to the list
    * - user - the current instance of User who will post the story
    * - newStory - a new story object for the API with title, author, and url
-   * - removeStory - sends a delete request
-   * Returns the new story object
+   *   Returns the new story object
    */
 
   async addStory(user, newStory) {
-    // TODO - Implement this functions!
     // this function should return the newly created story so it can be used in
     // the script.js file where it will be appended to the DOM
+    const res = await axios.get(`${BASE_URL}/stories`, {
+      token: user.loginToken,
+      story: {
+        author: newStory.author,
+        title: newStory.title,
+        url: newStory.url,
+      },
+    });
+    // error handling
+    if (!res.statusText === 'OK') {
+      throw new Error('API res is returning an error!');
+    }
+
+    // new story instance of data returned
+    newStory = new Story(res.data.story);
+    // add story to list
+    this.stories.unshift(newStory);
+    // add story to user's list
+    user.ownStories.unshift(newStories);
+
+    return newStory;
   }
 }
 
@@ -78,50 +100,47 @@ class User {
    */
 
   static async create(username, password, name) {
-    const response = await axios.post(`${BASE_URL}/signup`, {
+    const res = await axios.post(`${BASE_URL}/signup`, {
       user: {
         username,
         password,
         name,
       },
     });
-
-    // build a new User instance from the API response
-    const newUser = new User(response.data.user);
+    // build a new User instance from the API res
+    const newUser = new User(res.data.user);
 
     // attach the token to the newUser instance for convenience
-    newUser.loginToken = response.data.token;
+    newUser.loginToken = res.data.token;
 
     return newUser;
   }
 
   /* Login in user and return user instance.
-
    * - username: an existing user's username
    * - password: an existing user's password
    */
 
   static async login(username, password) {
-    const response = await axios.post(`${BASE_URL}/login`, {
+    const res = await axios.post(`${BASE_URL}/login`, {
       user: {
         username,
         password,
       },
     });
 
-    // build a new User instance from the API response
-    const existingUser = new User(response.data.user);
+    if (res.status != 200) {
+      alert('Server is down, please try again later');
+    }
+    // build a new User instance from the API res
+    const existingUser = new User(res.data.user);
 
     // instantiate Story instances for the user's favorites and ownStories
-    existingUser.favorites = response.data.user.favorites.map(
-      (s) => new Story(s)
-    );
-    existingUser.ownStories = response.data.user.stories.map(
-      (s) => new Story(s)
-    );
+    existingUser.favorites = res.data.user.favorites.map((s) => new Story(s));
+    existingUser.ownStories = res.data.user.stories.map((s) => new Story(s));
 
     // attach the token to the newUser instance for convenience
-    existingUser.loginToken = response.data.token;
+    existingUser.loginToken = res.data.token;
 
     return existingUser;
   }
@@ -137,26 +156,62 @@ class User {
     if (!token || !username) return null;
 
     // call the API
-    const response = await axios.get(`${BASE_URL}/users/${username}`, {
+    const res = await axios.get(`${BASE_URL}/users/${username}`, {
       params: {
         token,
       },
     });
 
     // instantiate the user from the API information
-    const existingUser = new User(response.data.user);
+    const existingUser = new User(res.data.user);
 
     // attach the token to the newUser instance for convenience
     existingUser.loginToken = token;
 
     // instantiate Story instances for the user's favorites and ownStories
-    existingUser.favorites = response.data.user.favorites.map(
-      (s) => new Story(s)
-    );
-    existingUser.ownStories = response.data.user.stories.map(
-      (s) => new Story(s)
-    );
+    existingUser.favorites = res.data.user.favorites.map((s) => new Story(s));
+    existingUser.ownStories = res.data.user.stories.map((s) => new Story(s));
     return existingUser;
+  }
+
+  async retrieveDetails() {
+    const res = await axios.get(`${BASE_URL}/users/${this.username}`, {
+      params: {
+        token: this.loginToken,
+      },
+    });
+
+    // update all of the user's properties from the API res
+    this.name = res.data.user.name;
+    this.createdAt = res.data.user.createdAt;
+    this.updatedAt = res.data.user.updatedAt;
+
+    // remember to convert the user's favorites and ownStories into instances of Story
+    this.favorites = res.data.user.favorites.map((s) => new Story(s));
+    this.ownStories = res.data.user.stories.map((s) => new Story(s));
+
+    return this;
+  }
+
+  addFavorite(storyId) {
+    return this.toggleFavorite(storyId, 'POST');
+  }
+
+  removeFavorite(storyId) {
+    return this.toggleFavorite(storyId, 'DELETE');
+  }
+
+  async toggleFavorite(storyId, addOrRemove) {
+    const res = await axios({
+      url: `${BASE_URL}/users/${this.username}/favorites/${storyId}`,
+      method: addOrRemove,
+      data: {
+        token: this.loginToken,
+      },
+    });
+
+    await this.retrieveDetails();
+    return this;
   }
 }
 
