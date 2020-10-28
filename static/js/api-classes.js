@@ -58,7 +58,7 @@ class StoryList {
     });
     // error handling
     if (!res.statusText === 'OK') {
-      throw new Error('API res is returning an error!');
+      throw new Error('Error adding story!');
     }
 
     // new story instance of data returned
@@ -69,6 +69,21 @@ class StoryList {
     user.ownStories.unshift(newStories);
 
     return newStory;
+  }
+
+  async removeStory(storyId, user) {
+    const res = await axios({
+      method: 'DELETE',
+      url: `${BASE_URL}/stories/${storyId}`,
+      data: {
+        token: user.loginToken,
+      },
+    });
+
+    // filter stories
+    this.stories = this.stories.filter((s) => s.storyId !== storyId);
+    // filter user's own stories
+    user.ownStories = user.ownStories.filter((s) => s.storyId !== storyId);
   }
 }
 
