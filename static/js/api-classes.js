@@ -24,31 +24,32 @@ class StoryList {
   // class directly. Why doesn't it make sense for getStories to be an instance method?
 
   static async getStories() {
-    const res = await axios({
-      url: `${BASE_URL}/stories`,
-      method: 'GET',
-      data: {
-        limit: 20,
-        skip: 0,
-      },
-    });
-    const stories = res.data.stories.map((story) => new Story(story));
-    const storyList = new StoryList(stories);
+    // query the /stories endpoint (no auth required)
+    const res = await axios.get(`${BASE_URL}/stories`);
+    if (res.status == 200) {
+      // turn the plain old story objects from the API into instances of the Story class
+      const stories = res.data.stories.map((story) => new Story(story));
 
-    return storyList;
+      // build an instance of our own class using the new array of stories
+      const storyList = new StoryList(stories);
+      return storyList;
+    } else {
+      alert('Server may be down... try again later :(');
+    }
   }
 
   /**
    * Method to make a POST request to /stories and add the new story to the list
    * - user - the current instance of User who will post the story
    * - newStory - a new story object for the API with title, author, and url
+   *
    *   Returns the new story object
    */
 
   async addStory(user, newStory) {
     // this function should return the newly created story so it can be used in
     // the script.js file where it will be appended to the DOM
-    const res = await axios.get(`${BASE_URL}/stories`, {
+    const res = await axios.post(`${BASE_URL}/stories`, {
       token: user.loginToken,
       story: {
         author: newStory.author,
@@ -56,33 +57,30 @@ class StoryList {
         url: newStory.url,
       },
     });
-    // error handling
-    if (!res.statusText === 'OK') {
-      throw new Error('Error adding story!');
-    }
 
-    // new story instance of data returned
-    newStory = new Story(res.data.story);
     // add story to list
-    this.stories.unshift(newStory);
-    // add story to user's list
-    user.ownStories.unshift(newStories);
+    newStory = new Story(res.data.story);
 
+    //add the story to the beginning of the list
+    this.stories.unshift(newStory);
+    //add story to the beginning of the user's list
+
+    user.ownStories.unshift(newStory);
     return newStory;
   }
 
-  async removeStory(storyId, user) {
-    const res = await axios({
-      method: 'DELETE',
+  async removeStory(user, storyId) {
+    await axios({
       url: `${BASE_URL}/stories/${storyId}`,
+      method: 'DELETE',
       data: {
         token: user.loginToken,
       },
     });
+    // filter out the story whose ID we are removing
+    this.stories = this.stories.filter((story) => story.storyId !== storyId);
 
-    // filter stories
-    this.stories = this.stories.filter((s) => s.storyId !== storyId);
-    // filter user's own stories
+    // do the same thing for the user's list of stories
     user.ownStories = user.ownStories.filter((s) => s.storyId !== storyId);
   }
 }
@@ -132,6 +130,7 @@ class User {
   }
 
   /* Login in user and return user instance.
+ 
    * - username: an existing user's username
    * - password: an existing user's password
    */
