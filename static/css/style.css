@@ -4,6 +4,7 @@ html {
 
 body {
   margin: 8px 7.5vw;
+  background-color: #303030;
 }
 
 h1 {
@@ -30,12 +31,9 @@ a:hover {
   text-decoration: underline;
 }
 
-
 .hidden {
   display: none;
 }
-
-
 
 nav {
   display: flex;
@@ -146,14 +144,14 @@ form > hr {
 }
 
 .star,
-.trash-can,
+.trashcan,
 .pencil {
   font-size: 0.75rem;
   margin: 0 2px;
   cursor: pointer;
 }
 
-.trash-can:hover {
+.trashcan:hover {
   color: crimson;
 }
 
@@ -187,7 +185,7 @@ form > hr {
   margin-left: 25px;
 }
 
-#favorited-articles,
+#favorited-stories,
 #filtered-articles,
 #my-articles {
   list-style: none;
@@ -211,7 +209,9 @@ form > hr {
   margin: 10px 0;
 }
 
-
+.trashcan {
+  color: red;
+}
 /** responsive queries for tightening things up for mobile. */
 
 @media screen and (max-width: 576px) {
