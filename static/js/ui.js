@@ -35,8 +35,8 @@ $(async function () {
    *  If successfully we will setup the user instance
    */
 
-  $loginForm.on('submit', async function (evt) {
-    evt.preventDefault(); // no page-refresh on submit
+  $loginForm.on('submit', async function (e) {
+    e.preventDefault(); // no page-refresh on submit
 
     // grab the username and password
     const username = $('#login-username').val();
@@ -56,8 +56,8 @@ $(async function () {
    *  If successfully we will setup a new user instance
    */
 
-  $createAccountForm.on('submit', async function (evt) {
-    evt.preventDefault(); // no page refresh
+  $createAccountForm.on('submit', async function (e) {
+    e.preventDefault(); // no page refresh
 
     // grab the required fields
     let name = $('#create-account-name').val();
@@ -87,8 +87,9 @@ $(async function () {
    */
 
   $submitForm.on('submit', async function (e) {
-    e.preventDefault;
+    e.preventDefault();
 
+    //get info from form
     const title = $('#title').val();
     const author = $('#author').val();
     const url = $('#url').val();
@@ -103,18 +104,18 @@ $(async function () {
     });
 
     const storyLi = $(`
-      <li id="${newStory.storyId}">
-        <span class="star">
-          <i class="far fa-star"></i>
-        </span>
-        <a class="article-link" href="${newStory.url}" target="_blank">
+    <li id="${newStory.storyId}">
+      <span class="star">
+        <i class="far fa-star"></i>
+      </span>
+      <a class="article-link" href="${newStory.url}" target="_blank">
           <strong>${newStory.title}</strong>
-        </a>
-        <small class="article-author">${newStory.author}</small>
-        <small class="article-hostname">(${hostname})</small>
-        <small class="article-username">posted by ${newStory.username}</small>
-      </li>
-    `);
+      </a>
+      <small class="article-author">by ${newStory.author}</small>
+      <small class="article-hostname ${hostName}">(${hostName})</small>
+      <small class="article-username">posted by ${newStory.username}</small>
+    </li>
+  `);
 
     $allStoriesList.prepend(storyLi);
     $submitForm.slideUp('slow');
@@ -135,8 +136,11 @@ $(async function () {
   /**
    * Event handler for nav profile click
    */
+
   $navUserProfile.on('click', function () {
+    // hides everything
     hideElements();
+    // show user profile
     $userProfile.show();
   });
 
@@ -167,7 +171,7 @@ $(async function () {
    * Event handler for Navigation to Homepage
    */
 
-  $('body').on('click', '#nav-all', async function () {
+  $body.on('click', '#nav-all', async function () {
     hideElements();
     await generateStories();
     $allStoriesList.show();
@@ -212,7 +216,7 @@ $(async function () {
       await currentUser.removeFavorite(storyId);
     }
     await storyList.removeStory(currentUser, storyId);
-    await generateStories;
+    await generateStories();
     hideElements();
     $allStoriesList.show();
   });
@@ -234,6 +238,7 @@ $(async function () {
     await generateStories();
 
     if (currentUser) {
+      generateProfile();
       showNavForLoggedInUser();
     }
   }
@@ -251,6 +256,7 @@ $(async function () {
     $loginForm.trigger('reset');
     $createAccountForm.trigger('reset');
 
+    generateStories();
     // show the stories
     $allStoriesList.show();
 
@@ -266,16 +272,20 @@ $(async function () {
    */
 
   function generateProfile() {
+    // show name
     $('#profile-name').text(`Name: ${currentUser.name}`);
 
+    // show username
     $('#profile-username').text(`Username: ${currentUser.username}`);
 
     $('#profile-account-date').text(
       `Account Created: ${currentUser.createdAt.slice(0, 10)}`
     );
 
+    // nav shows user's username
     $navUserProfile.text(`${currentUser.username}`);
   }
+
   /**
    * A rendering function to call the StoryList.getStories static method,
    *  which will generate a storyListInstance. Then render it.
@@ -291,8 +301,8 @@ $(async function () {
 
     // loop through all of our stories and generate HTML for them
     for (let story of storyList.stories) {
-      const result = generateStoryHTML(story);
-      $allStoriesList.append(result);
+      const storyLi = generateStoryHTML(story, false, true);
+      $allStoriesList.append(storyLi);
     }
   }
 
@@ -304,6 +314,7 @@ $(async function () {
     let hostName = getHostName(story.url);
     let favoriteType = checkFavorites(story) ? 'fas' : 'far';
 
+    //show the trash can icon to delete your own stories
     const removeIcon = isOwnStory
       ? `
       <span class="trashcan">
@@ -337,6 +348,7 @@ $(async function () {
   function generateFavorites() {
     $favoritedStories.empty();
 
+    // if the user has no favorites
     if (currentUser.favorites.length === 0) {
       $favoritedStories.append(
         `<h6>You don't have any favorites, ${currentUser.name}!</h6>`
@@ -354,7 +366,7 @@ $(async function () {
 
     if (currentUser.ownStories.length === 0) {
       $ownStories.append(
-        `<h6>No stories added by ${currentUser.name} yet!</h6>`
+        `<h6>No stories added by <u>${currentUser.name}</u> yet!</h6>`
       );
     } else {
       for (let story of currentUser.ownStories) {
@@ -362,6 +374,8 @@ $(async function () {
         $ownStories.append(ownStoryHTML);
       }
     }
+
+    $ownStories.show();
   }
 
   /* hide all elements in elementsArr */
@@ -380,26 +394,22 @@ $(async function () {
     elementsArr.forEach(($elem) => $elem.hide());
   }
 
+  /* check if a story is in the user's favorite list */
+
+  function checkFavorites(story) {
+    let favStoryIds = new Set();
+    if (currentUser) {
+      favStoryIds = new Set(currentUser.favorites.map((obj) => obj.storyId));
+    }
+    return favStoryIds.has(story.storyId);
+  }
+
   function showNavForLoggedInUser() {
     $navLogin.hide();
     $userProfile.hide();
-
-    $('.main-nav-links').toggleClass('hidden');
-    $('#user-profile').toggleClass('hidden');
-
+    $('.main-nav-links, #user-profile').toggleClass('hidden');
     $navWelcome.show();
     $navLogOut.show();
-  }
-
-  function checkFavorites(story) {
-    let favoritedStoryIds = new Set();
-    if (currentUser) {
-      favoritedStoryIds = new Set(
-        currentUser.favorites.map((obj) => obj.storyId)
-      );
-    }
-
-    return favoritedStoryIds.has(story.storyId);
   }
 
   /* simple function to pull the hostname from a URL */
