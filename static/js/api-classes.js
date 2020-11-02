@@ -145,6 +145,8 @@ class User {
 
     if (res.status != 200) {
       alert('Server is down, please try again later');
+    } else if ((res.status = 404)) {
+      alert('No user with these user credentials!');
     }
     // build a new User instance from the API res
     const existingUser = new User(res.data.user);
